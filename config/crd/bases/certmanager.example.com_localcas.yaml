@@ -1,0 +1,92 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: localcas.certmanager.example.com
+spec:
+  group: certmanager.example.com
+  names:
+    kind: LocalCA
+    plural: localcas
+  scope: ""
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: LocalCA is the Schema for the localcas API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: LocalCASpec defines the desired state of LocalCA
+          properties:
+            secretName:
+              description: The name of a Secret resource containing the CA certificate
+                and private key used to sign certificates.
+              type: string
+          required:
+          - secretName
+          type: object
+        status:
+          description: LocalCAStatus defines the observed state of LocalCA
+          properties:
+            conditions:
+              items:
+                description: LocalCACondition contains condition information for a
+                  LocalCA.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the timestamp corresponding
+                      to the last status change of this condition.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human readable description of the details
+                      of the last transition, complementing reason.
+                    type: string
+                  reason:
+                    description: Reason is a brief machine readable explanation for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status of the condition, one of ('True', 'False',
+                      'Unknown').
+                    enum:
+                    - "True"
+                    - "False"
+                    - Unknown
+                    type: string
+                  type:
+                    description: Type of the condition, currently ('Ready').
+                    enum:
+                    - Ready
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+          type: object
+      type: object
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

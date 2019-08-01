@@ -1,0 +1,7 @@
+version: "2"
+domain: example.com
+repo: github.com/jetstack/cert-manager-external-issuer-example
+resources:
+- group: certmanager
+  version: v1beta1
+  kind: LocalCA

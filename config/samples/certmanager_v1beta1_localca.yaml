@@ -1,0 +1,6 @@
+apiVersion: certmanager.example.com/v1beta1
+kind: LocalCA
+metadata:
+  name: localca-sample
+spec:
+  secretName: selfsign-root
