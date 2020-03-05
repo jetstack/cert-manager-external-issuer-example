@@ -24,14 +24,14 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 )
 
 var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
 
 // GenerateTemplate will create a x509.Certificate for the given
 // CertificateRequest resource
-func GenerateTemplateFromCertificateRequest(cr *v1alpha1.CertificateRequest) (*x509.Certificate, error) {
+func GenerateTemplateFromCertificateRequest(cr *cmapi.CertificateRequest) (*x509.Certificate, error) {
 	block, _ := pem.Decode(cr.Spec.CSRPEM)
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode csr from certificate request resource %s/%s",
@@ -52,7 +52,7 @@ func GenerateTemplateFromCertificateRequest(cr *v1alpha1.CertificateRequest) (*x
 		return nil, fmt.Errorf("failed to generate serial number: %s", err.Error())
 	}
 
-	certDuration := v1alpha1.DefaultCertificateDuration
+	certDuration := cmapi.DefaultCertificateDuration
 	if cr.Spec.Duration != nil {
 		certDuration = cr.Spec.Duration.Duration
 	}

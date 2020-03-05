@@ -23,7 +23,8 @@ import (
 
 	"github.com/go-logr/logr"
 	apiutil "github.com/jetstack/cert-manager/pkg/api/util"
-	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
+	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -70,7 +71,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	// Fetch the LocalCA resource for this request so we can read the CA Secret.
 	localCA := exampleapi.LocalCA{}
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: cr.Spec.IssuerRef.Name}, &localCA); err != nil {
-		err := r.setStatus(ctx, log, &cr, cmapi.ConditionFalse, cmapi.CertificateRequestReasonPending,
+		err := r.setStatus(ctx, log, &cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending,
 			"Failed to retrieve LocalCA %s/%s: %v", req.Namespace, cr.Spec.IssuerRef.Name, err)
 		return ctrl.Result{}, err
 	}
@@ -80,7 +81,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		Type:   exampleapi.LocalCAConditionReady,
 		Status: exampleapi.ConditionTrue,
 	}) {
-		err := r.setStatus(ctx, log, &cr, cmapi.ConditionFalse, cmapi.CertificateRequestReasonPending,
+		err := r.setStatus(ctx, log, &cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending,
 			"LocalCA %s/%s is not Ready", req.Namespace, cr.Spec.IssuerRef.Name)
 		return ctrl.Result{}, err
 	}
@@ -88,7 +89,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	// Fetch the Secret resource containing the CA keypair used for signing
 	caSecret := core.Secret{}
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: localCA.Namespace, Name: localCA.Spec.SecretName}, &caSecret); err != nil {
-		err := r.setStatus(ctx, log, &cr, cmapi.ConditionFalse, cmapi.CertificateRequestReasonPending,
+		err := r.setStatus(ctx, log, &cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending,
 			"Failed to fetch CA secret resource: %v", err)
 		return ctrl.Result{}, err
 	}
@@ -97,7 +98,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	caPK, caCert, err := decodeCertificateSecret(&caSecret)
 	if err != nil {
 		log.Error(err, "failed to decode keypair")
-		err := r.setStatus(ctx, log, &cr, cmapi.ConditionFalse, cmapi.CertificateRequestReasonPending, "Failed to decode CA secret data: %v", err)
+		err := r.setStatus(ctx, log, &cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending, "Failed to decode CA secret data: %v", err)
 		return ctrl.Result{}, err
 	}
 
@@ -105,7 +106,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	template, err := pkiutil.GenerateTemplateFromCertificateRequest(&cr)
 	if err != nil {
 		log.Error(err, "failed to generate certificate template from request")
-		err := r.setStatus(ctx, log, &cr, cmapi.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Failed to generate template for certificate signing: %v", err)
+		err := r.setStatus(ctx, log, &cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Failed to generate template for certificate signing: %v", err)
 		return ctrl.Result{}, err
 	}
 
@@ -113,7 +114,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	signedPEM, _, err := pkiutil.SignCertificate(template, caCert, template.PublicKey, caPK)
 	if err != nil {
 		log.Error(err, "failed signing certificate")
-		err := r.setStatus(ctx, log, &cr, cmapi.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Failed to sign certificate: %v", err)
+		err := r.setStatus(ctx, log, &cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Failed to sign certificate: %v", err)
 		return ctrl.Result{}, err
 	}
 
@@ -123,7 +124,7 @@ func (r *CertificateRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	cr.Status.CA = caSecret.Data[core.TLSCertKey]
 
 	// Finally, update the status
-	return ctrl.Result{}, r.setStatus(ctx, log, &cr, cmapi.ConditionTrue, cmapi.CertificateRequestReasonIssued, "Successfully issued certificate")
+	return ctrl.Result{}, r.setStatus(ctx, log, &cr, cmmeta.ConditionTrue, cmapi.CertificateRequestReasonIssued, "Successfully issued certificate")
 }
 
 // localCAHasCondition will return true if the given LocalCA has a
@@ -141,14 +142,14 @@ func localCAHasCondition(localCA exampleapi.LocalCA, c exampleapi.LocalCAConditi
 	return false
 }
 
-func (r *CertificateRequestReconciler) setStatus(ctx context.Context, log logr.Logger, cr *cmapi.CertificateRequest, status cmapi.ConditionStatus, reason, message string, args ...interface{}) error {
+func (r *CertificateRequestReconciler) setStatus(ctx context.Context, log logr.Logger, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string, args ...interface{}) error {
 	// Format the message and update the localCA variable with the new Condition
 	completeMessage := fmt.Sprintf(message, args...)
 	apiutil.SetCertificateRequestCondition(cr, cmapi.CertificateRequestConditionReady, status, reason, completeMessage)
 
 	// Fire an Event to additionally inform users of the change
 	eventType := core.EventTypeNormal
-	if status == cmapi.ConditionFalse {
+	if status == cmmeta.ConditionFalse {
 		eventType = core.EventTypeWarning
 	}
 	r.Recorder.Event(cr, eventType, reason, completeMessage)
